@@ -1,0 +1,138 @@
+@startuml
+title Questão 2 - Casa de Leilões Online\nPadrões: Observer (RNF01), Strategy (RNF02) e Decorator (RNF03, RNF04)
+
+skinparam classAttributeIconSize 0
+
+interface Observavel <<Observer: Sujeito>> {
+  + adicionarInteressado(interessado : Interessado) : void
+  + removerInteressado(interessado : Interessado) : void
+  + notificarInteressados(lance : Lance) : void
+}
+interface Interessado <<Observer: Observador>> {
+  + atualizar(lote : Lote, lance : Lance) : void
+}
+class Lote <<Observer: Sujeito Concreto / Strategy: Contexto>> {
+  - nome : String
+  - categoria : String
+  - precoInicial : double
+  - precoReserva : double
+  - regraComissao : RegraComissao
+  - interessados : List<Interessado>
+  - lances : List<Lance>
+  - aberto : boolean
+  - vendido : boolean
+  - comissao : double
+  + getLanceAtual() : double
+  + receberLance(lance : Lance) : boolean
+  + adicionarInteressado(interessado : Interessado) : void
+  + removerInteressado(interessado : Interessado) : void
+  + notificarInteressados(lance : Lance) : void
+  + setRegraComissao(regra : RegraComissao) : void
+  + encerrar() : void
+  + getNome() : String
+  + getCategoria() : String
+  + getTotalLances() : int
+  + isVendido() : boolean
+  + getValorVenda() : double
+  + getComissao() : double
+}
+class Lance <<Lance aceito>> {
+  - autor : Interessado
+  - nomeParticipante : String
+  - valor : double
+  + getAutor() : Interessado
+  + getNomeParticipante() : String
+  + getValor() : double
+}
+class Participante <<Observer: Observador Concreto>> {
+  - nome : String
+  + getNome() : String
+  + darLance(lote : Lote, valor : double) : boolean
+  + atualizar(lote : Lote, lance : Lance) : void
+}
+class PainelLeiloeiro <<Observer: Observador Concreto>> {
+  + atualizar(lote : Lote, lance : Lance) : void
+}
+class Auditor <<Observer: Observador Concreto>> {
+  - registros : List<String>
+  + atualizar(lote : Lote, lance : Lance) : void
+}
+
+Observavel <|.. Lote
+Interessado <|.. Participante
+Interessado <|.. PainelLeiloeiro
+Interessado <|.. Auditor
+Lote o--> "0..*" Interessado : interessados
+Lote *--> "0..*" Lance : lances
+Lance --> "1" Interessado : autor
+Participante ..> Lance : <<create>>
+Participante ..> Lote : darLance()
+
+interface RegraComissao <<Strategy: Estratégia>> {
+  + calcular(valorVenda : double) : double
+}
+class ComissaoArte <<Estratégia Concreta>>
+class ComissaoVeiculos <<Estratégia Concreta>>
+class ComissaoImoveis <<Estratégia Concreta>>
+class ComissaoEletronicos <<Estratégia Concreta>>
+
+RegraComissao <|.. ComissaoArte
+RegraComissao <|.. ComissaoVeiculos
+RegraComissao <|.. ComissaoImoveis
+RegraComissao <|.. ComissaoEletronicos
+Lote o--> "1" RegraComissao : regraComissao
+
+interface Compra <<Decorator: Componente>> {
+  + getNomeLote() : String
+  + getValorVenda() : double
+  + getDetalhes() : String
+  + getTotal() : double
+}
+class CompraBase <<Decorator: Componente Concreto>> {
+  - nomeLote : String
+  - valorVenda : double
+  + CompraBase(lote : Lote)
+}
+abstract class ServicoAdicional <<Decorator: Decorador>> {
+  # compra : Compra
+  # {abstract} getDescricao() : String
+  # {abstract} getCusto() : double
+  + getDetalhes() : String
+  + getTotal() : double
+}
+class SeguroTransporte <<Decorador Concreto>>
+class CertificadoAutenticidade <<Decorador Concreto>>
+class EmbalagemEspecial <<Decorador Concreto>>
+class EntregaExpressa <<Decorador Concreto>>
+
+Compra <|.. CompraBase
+Compra <|.. ServicoAdicional
+ServicoAdicional o--> "1" Compra : compra
+ServicoAdicional <|-- SeguroTransporte
+ServicoAdicional <|-- CertificadoAutenticidade
+ServicoAdicional <|-- EmbalagemEspecial
+ServicoAdicional <|-- EntregaExpressa
+CompraBase ..> Lote : lê nome e valor
+
+class Fatura <<Imprime fatura (RF09)>> {
+  + imprimir(compra : Compra) : void
+}
+class AcertoVendedor <<Imprime acerto (RF10)>> {
+  + imprimir(lote : Lote) : void
+}
+Fatura ..> Compra
+AcertoVendedor ..> Lote
+
+class Main <<Cenário de demonstração (RF11)>> {
+  + {static} main(args : String[]) : void
+}
+Main ..> Lote : <<create>>
+Main ..> Participante : <<create>>
+Main ..> PainelLeiloeiro : <<create>>
+Main ..> Auditor : <<create>>
+Main ..> RegraComissao : <<create>>
+Main ..> Compra : <<create>>
+Main ..> Fatura : <<create>>
+Main ..> AcertoVendedor : <<create>>
+
+@enduml
