@@ -1,0 +1,156 @@
+@startuml
+title Questão 1 - Provisionamento Multinuvem\nPadrões: Abstract Factory (RNF01, RNF02, RNF03, RNF06) e Singleton (RNF04, RNF05)
+
+skinparam classAttributeIconSize 0
+
+interface Recurso <<Produto (base)>> {
+  + getId() : String
+  + getCustoMensal() : double
+}
+interface MaquinaVirtual <<Abstract Factory: Produto Abstrato>> {
+  + HORAS_POR_MES : int = 730
+}
+interface Armazenamento <<Abstract Factory: Produto Abstrato>> {
+  + getGb() : int
+}
+interface Fila <<Abstract Factory: Produto Abstrato>>
+
+Recurso <|-- MaquinaVirtual
+Recurso <|-- Armazenamento
+Recurso <|-- Fila
+
+class AwsMaquinaVirtual <<Produto Concreto>> {
+  + CUSTO_HORA : double = 0.10
+  - SEQUENCIA : AtomicInteger
+  - id : String
+}
+class AwsArmazenamento <<Produto Concreto>> {
+  + CUSTO_GB : double = 0.023
+  - SEQUENCIA : AtomicInteger
+  - id : String
+  - gb : int
+}
+class AwsFila <<Produto Concreto>> {
+  + CUSTO_FIXO : double = 0.40
+  - SEQUENCIA : AtomicInteger
+  - id : String
+}
+class AzureMaquinaVirtual <<Produto Concreto>> {
+  + CUSTO_HORA : double = 0.12
+  - SEQUENCIA : AtomicInteger
+  - id : String
+}
+class AzureArmazenamento <<Produto Concreto>> {
+  + CUSTO_GB : double = 0.02
+  - SEQUENCIA : AtomicInteger
+  - id : String
+  - gb : int
+}
+class AzureFila <<Produto Concreto>> {
+  + CUSTO_FIXO : double = 0.50
+  - SEQUENCIA : AtomicInteger
+  - id : String
+}
+
+MaquinaVirtual <|.. AwsMaquinaVirtual
+MaquinaVirtual <|.. AzureMaquinaVirtual
+Armazenamento <|.. AwsArmazenamento
+Armazenamento <|.. AzureArmazenamento
+Fila <|.. AwsFila
+Fila <|.. AzureFila
+
+interface ProvedorFactory <<Abstract Factory: Fábrica Abstrata>> {
+  + getNome() : String
+  + criarMaquinaVirtual() : MaquinaVirtual
+  + criarArmazenamento(gb : int) : Armazenamento
+  + criarFila() : Fila
+  + getCustoHoraMaquina() : double
+  + getCustoGbArmazenamento() : double
+  + getCustoFixoFila() : double
+}
+class AwsFactory <<Fábrica Concreta>>
+class AzureFactory <<Fábrica Concreta>>
+
+ProvedorFactory <|.. AwsFactory
+ProvedorFactory <|.. AzureFactory
+
+AwsFactory ..> AwsMaquinaVirtual : <<create>>
+AwsFactory ..> AwsArmazenamento : <<create>>
+AwsFactory ..> AwsFila : <<create>>
+AzureFactory ..> AzureMaquinaVirtual : <<create>>
+AzureFactory ..> AzureArmazenamento : <<create>>
+AzureFactory ..> AzureFila : <<create>>
+
+class ProvisionadorAmbiente <<Abstract Factory: Cliente>> {
+  - fabrica : ProvedorFactory
+  + ProvisionadorAmbiente(fabrica : ProvedorFactory)
+  + provisionar(solicitacao : Solicitacao) : void
+}
+class Ambiente <<Cliente da fábrica (monta os recursos)>> {
+  - nome : String
+  - provedor : String
+  - regiao : String
+  + Ambiente(nome : String, regiao : String, fabrica : ProvedorFactory, quantidadeMaquinas : int, gb : int)
+  + getCustoMensal() : double
+  + resumo() : String
+}
+class Solicitacao <<Dados da solicitação>> {
+  - nomeAmbiente : String
+  - provedor : String
+  - quantidadeMaquinas : int
+  - gbArmazenamento : int
+  + getNomeAmbiente() : String
+  + getProvedor() : String
+  + getQuantidadeMaquinas() : int
+  + getGbArmazenamento() : int
+}
+
+ProvisionadorAmbiente o--> "1" ProvedorFactory
+ProvisionadorAmbiente ..> Solicitacao
+ProvisionadorAmbiente ..> Ambiente : <<create>>
+Ambiente ..> ProvedorFactory : usa
+Ambiente *--> "1..*" MaquinaVirtual
+Ambiente *--> "1" Armazenamento
+Ambiente *--> "1" Fila
+
+class Configuracao <<Singleton>> {
+  - {static} INSTANCIA : Configuracao
+  - regiao : String
+  - orcamentoMaximo : double
+  - Configuracao()
+  + {static} getInstancia() : Configuracao
+  + getRegiao() : String
+  + getOrcamentoMaximo() : double
+}
+class Auditoria <<Singleton (thread-safe)>> {
+  - {static} INSTANCIA : Auditoria
+  - registros : List<RegistroAuditoria>
+  - Auditoria()
+  + {static} getInstancia() : Auditoria
+  + registrar(ambiente : String, provedor : String, resultado : String) : void <<synchronized>>
+  + imprimirHistorico() : void <<synchronized>>
+}
+class RegistroAuditoria <<Registro de auditoria>> {
+  - dataHora : LocalDateTime
+  - ambiente : String
+  - provedor : String
+  - resultado : String
+  + toString() : String
+}
+
+Auditoria *--> "0..*" RegistroAuditoria
+ProvisionadorAmbiente ..> Configuracao : getInstancia()
+ProvisionadorAmbiente ..> Auditoria : getInstancia()
+
+class Main <<Escolhe o provedor / dispara threads>> {
+  + {static} main(args : String[]) : void
+  - {static} provisionar(solicitacao : Solicitacao) : void
+  - {static} escolherProvedor(provedor : String) : ProvedorFactory
+}
+Main ..> AwsFactory : <<create>>
+Main ..> AzureFactory : <<create>>
+Main ..> ProvisionadorAmbiente : <<create>>
+Main ..> Solicitacao : <<create>>
+Main ..> Auditoria : imprimirHistorico()
+
+@enduml
